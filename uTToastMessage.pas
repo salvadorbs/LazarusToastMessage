@@ -1,22 +1,19 @@
 unit uTToastMessage;
 
+{$MODE DelphiUnicode}
+
 interface
 
-uses System.NetEncoding,
-     Vcl.Graphics,
-     Vcl.Controls,
-     Vcl.Extctrls,
-     Vcl.StdCtrls,
-     Vcl.Imaging.pngimage,
-     System.Classes,
-     System.SysUtils,
-     Forms,
-     Winapi.Windows,
-     Winapi.Messages;
+uses
+    Classes, SysUtils, LCLType, LResources, Forms, Controls, Graphics, Dialogs,
+    StdCtrls, LCLIntf, ComCtrls, ExtCtrls;
 
 type tpMode = (tpSuccess,tpInfo,tpError);
 
 type
+
+  { TToastMessage }
+
   TToastMessage = class
     private
       {Timer}
@@ -26,11 +23,12 @@ type
       procedure PanelBoxPosition (Sender: TObject);
       procedure CreatePanelBox   (const Parent : TWinControl);
       procedure RegisterColors;
-
-      function Base64ToPng(const StringBase64: string): TPngImage;
+                                  
+      function Base64ToStream(const ABase64: String; var AStream: TMemoryStream
+        ): Boolean;
+      function StreamToBase64(const AStream: TMemoryStream; out Base64: String
+        ): Boolean;
       var
-        Timer : TTimer;
-
         SuccessImage : string;
         ErrorImage   : string;
         InfoImage    : string;
@@ -59,6 +57,9 @@ type
   end;
 
 implementation
+
+uses
+ Base64;
 
 { ToastMessage }
 
@@ -142,31 +143,46 @@ end;
 procedure TToastMessage.Wait(Sender: TObject);
 begin
   TimerAnimation.Enabled := True;
+end;     
+
+function TToastMessage.StreamToBase64(const AStream: TMemoryStream; out Base64: String): Boolean;
+var
+  Str: String;
+begin
+  Result := False;
+  if AStream.Size = 0 then
+    Exit;
+  AStream.Position := 0;
+  try
+    SetLength(Str, AStream.Size div SizeOf(Char));
+    AStream.ReadBuffer(Pointer(Str)^, AStream.Size div SizeOf(Char));
+    Base64 := EncodeStringBase64(Str);
+    Result := True;
+  except
+    on E: Exception do
+      ShowMessage(E.Message);
+  end;
 end;
 
-function TToastMessage.Base64ToPng(const StringBase64: string) : TPngImage;
+function TToastMessage.Base64ToStream(const ABase64: String; var AStream: TMemoryStream): Boolean;
 var
-  Input  : TStringStream;
-  Output : TBytesStream;
+  Str: TStringStream;
 begin
-  Input := TStringStream.Create(StringBase64, TEncoding.ASCII);
+  Result := False;
+  if Length(Trim(ABase64)) = 0 then
+    Exit;
   try
-    Output := TBytesStream.Create;
+    Str := TStringStream.Create(DecodeStringBase64(ABase64));
     try
-      TNetEncoding.Base64.Decode(Input, Output);
-      Output.Position := 0;
-      Result := TPngImage.Create;
-      try
-        Result.LoadFromStream(Output);
-      except
-        Result.Free;
-        raise;
-      end;
+      AStream.CopyFrom(Str, Str.Size);
+      AStream.Position := 0;
     finally
-      Output.Free;
+      Str.Free;
     end;
-  finally
-    Input.Free;
+    Result := True;
+  except
+    on E: Exception do
+      ShowMessage(E.Message);
   end;
 end;
 
@@ -181,31 +197,27 @@ begin
   PanelBox                  := TPanel.Create(nil);
   PanelBox.Visible          := True;
   PanelBox.Parent           := Parent;
-  PanelBox.BorderStyle      := Forms.bsNone;
+  PanelBox.BorderStyle      := bsNone;
   PanelBox.Color            := PanelBoxColor;
   PanelBox.Height           := 38;
   PanelBox.Width            := 185;
   PanelBox.Top              := MinTop;
   PanelBox.BevelOuter       := bvNone;
   PanelBox.BevelInner       := bvNone;
-  PanelBox.BevelKind        := bkNone;
   PanelBox.ParentBackground := False;
-  PanelBox.Ctl3d            := False;
   PanelBox.Tag              := 0;
 
   {Create Panel Vertical Line}
   PanelLine                  := TPanel.Create(PanelBox);
   PanelLine.Parent           := PanelBox;
-  PanelLine.BorderStyle      := Forms.bsNone;
+  PanelLine.BorderStyle      := bsNone;
   PanelLine.Align            := alLeft;
   PanelLine.BevelOuter       := bvNone;
   PanelLine.BevelInner       := bvNone;
-  PanelLine.BevelKind        := bkNone;
   PanelLine.Width            := 5;
   PanelLine.ParentBackground := False;
   PanelLine.Visible          := True;
   PanelLine.FullRepaint      := True;
-  PanelLine.Ctl3d            := False;
 
   {Create Image}
   PanelImage             := TPanel.Create(PanelBox);
@@ -214,8 +226,7 @@ begin
   PanelImage.Align       := alLeft;
   PanelImage.BevelOuter  := bvNone;
   PanelImage.BevelInner  := bvNone;
-  PanelImage.BevelKind   := bkNone;
-  PanelImage.BorderStyle := Forms.bsNone;
+  PanelImage.BorderStyle := bsNone;
   PanelImage.Color       := PanelBoxColor;
   PanelImage.Height      := 38;
   PanelImage.Left        := 0;
@@ -236,8 +247,7 @@ begin
   PanelMessage.Align       := alClient;
   PanelMessage.BevelOuter  := bvNone;
   PanelMessage.BevelInner  := bvNone;
-  PanelMessage.BevelKind   := bkNone;
-  PanelMessage.BorderStyle := Forms.bsNone;
+  PanelMessage.BorderStyle := bsNone;
   PanelMessage.Color       := PanelBoxColor;
 
   {Create Title}
@@ -307,7 +317,10 @@ begin
   ErrorColor    := $003643F4;
 end;
 
-procedure TToastMessage.Toast(const MessageType : tpMode; pTitle, pText : string);
+procedure TToastMessage.Toast(const MessageType : tpMode; pTitle, pText : string);   
+var
+  Stream: TMemoryStream;
+  ImageBase64: String;
 begin
   Title.Caption := pTitle;
   Text.Caption  := pText;
@@ -315,18 +328,26 @@ begin
   if MessageType = tpSuccess then
     begin
       PanelLine.Color := SuccessColor;
-      Image.Picture.Assign(Base64ToPng(Trim(SuccessImage)));
+      ImageBase64 := Trim(SuccessImage);
     end
   else if MessageType = tpInfo then
     begin
       PanelLine.Color := InfoColor;
-      Image.Picture.Assign(Base64ToPng(Trim(InfoImage)));
+      ImageBase64 := Trim(InfoImage);
     end
   else if MessageType = tpError then
     begin
       PanelLine.Color := ErrorColor;
-      Image.Picture.Assign(Base64ToPng(Trim(ErrorImage)));
+      ImageBase64 := Trim(ErrorImage);
     end;
+              
+  Stream := TMemoryStream.Create;
+  try
+    if Base64ToStream(Trim(ImageBase64), Stream) then
+      Image.Picture.LoadFromStream(Stream);
+  finally   
+    Stream.Free;
+  end;
 
   //Start Toast
   TimerAnimation.Enabled := True;

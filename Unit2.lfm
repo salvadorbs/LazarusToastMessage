@@ -1,0 +1,44 @@
+object Form2: TForm2
+  Left = 0
+  Height = 408
+  Top = 0
+  Width = 882
+  Caption = 'Form2'
+  ClientHeight = 408
+  ClientWidth = 882
+  Color = clBtnFace
+  DesignTimePPI = 120
+  Font.Color = clWindowText
+  Font.Height = -14
+  Font.Name = 'Tahoma'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '2.2.3.0'
+  object BtnSuccess: TButton
+    Left = 220
+    Height = 31
+    Top = 140
+    Width = 94
+    Caption = 'Success'
+    OnClick = BtnSuccessClick
+    TabOrder = 0
+  end
+  object BtnInfo: TButton
+    Left = 321
+    Height = 31
+    Top = 140
+    Width = 94
+    Caption = 'Info'
+    OnClick = BtnInfoClick
+    TabOrder = 1
+  end
+  object BtnError: TButton
+    Left = 422
+    Height = 31
+    Top = 140
+    Width = 94
+    Caption = 'Error'
+    OnClick = BtnErrorClick
+    TabOrder = 2
+  end
+end

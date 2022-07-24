@@ -1,10 +1,12 @@
 unit Unit2;
 
+{$MODE DelphiUnicode}
+
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, uTToastMessage;
+  Classes, SysUtils, LCLType, LResources, Forms, Controls, Graphics, Dialogs,
+  StdCtrls, LCLIntf, ComCtrls, ExtCtrls, uTToastMessage;
 
 type
   TForm2 = class(TForm)
@@ -29,7 +31,7 @@ var
 
 implementation
 
-{$R *.dfm}
+{$R *.lfm}
 
 procedure TForm2.BtnErrorClick(Sender: TObject);
 begin
